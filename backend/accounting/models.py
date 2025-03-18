@@ -170,14 +170,3 @@ class JournalEntry(models.Model):
 
         super().save(*args, **kwargs)
 
-
-
-    # def delete(self, *args, **kwargs):
-    #     # إعادة المبلغ إلى الحسابات عند حذف القيد
-    #     self.debit_account.balance += self.debit_amount
-    #     self.debit_account.save()
-
-    #     self.credit_account.balance -= self.credit_amount
-    #     self.credit_account.save()
-
-    #     super().delete(*args, **kwargs)

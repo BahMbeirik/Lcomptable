@@ -1,244 +1,267 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../api';
 import { Doughnut } from 'react-chartjs-2';
-import 'chart.js/auto'; 
+import 'chart.js/auto';
 
 const InterestCalculator = () => {
-    const [loans, setLoans] = useState([]); 
-    const [deposits, setDeposits] = useState([]); 
-    const [selectedLoan, setSelectedLoan] = useState(''); 
-    const [selectedDeposit, setSelectedDeposit] = useState(''); 
-    const [interest, setInterest] = useState(null);
-    const [principal, setPrincipal] = useState(null);
-    const [rate, setRate] = useState(null); 
-    const [tenure, setTenure] = useState(null); 
-    const [totalPayable, setTotalPayable] = useState(null); 
-    const [activeButton, setActiveButton] = useState('load');
+  const [loans, setLoans] = useState([]);
+  const [deposits, setDeposits] = useState([]);
+  const [selectedLoan, setSelectedLoan] = useState('');
+  const [selectedDeposit, setSelectedDeposit] = useState('');
+  const [interest, setInterest] = useState(null);
+  const [principal, setPrincipal] = useState(null);
+  const [rate, setRate] = useState(null);
+  const [tenure, setTenure] = useState(null);
+  const [totalPayable, setTotalPayable] = useState(null);
+  const [activeTab, setActiveTab] = useState('loan');
 
-    
-    useEffect(() => {
-        axiosInstance.get('/loans/')
-            .then(response => {
-                setLoans(response.data); 
-            })
-            .catch(error => {
-                console.log(error);
-            });
+  useEffect(() => {
+    axiosInstance
+      .get('/loans/')
+      .then((response) => {
+        setLoans(response.data);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
 
-            axiosInstance.get('/deposits/')
-            .then(response => {
-                setDeposits(response.data); 
-            })
-            .catch(error => {
-                console.log(error);
-            });
-    }, []);
-    
+    axiosInstance
+      .get('/deposits/')
+      .then((response) => {
+        setDeposits(response.data);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }, []);
 
-    const handleCalculate = () => {
-        if (selectedLoan) {
-            axiosInstance.get(`/loans/${selectedLoan}/calculate_interest`)
-                .then(response => {
-                    const { interest, principal, rate, tenure, total_payable } = response.data;
-                    setInterest(interest);
-                    setPrincipal(principal);
-                    setRate(rate);
-                    setTenure(tenure);
-                    setTotalPayable(total_payable);
-                })
-                .catch(error => {
-                    console.log(error);
-                });
-        } else {
-            alert("Please select a loan to calculate interest.");
-        }
-    };
-
-    const handleCalculateDeposit = () => {
-      if (selectedDeposit) {
-          axiosInstance.get(`/deposits/${selectedDeposit}/calculate_interestDeposit`)
-              .then(response => {
-                  const { interest, principal, rate, tenure, total_payable } = response.data;
-                  setInterest(interest);
-                  setPrincipal(principal);
-                  setRate(rate);
-                  setTenure(tenure);
-                  setTotalPayable(total_payable);
-              })
-              .catch(error => {
-                  console.log(error);
-              });
-      } else {
-          alert("Please select a deposit to calculate interest.");
-      }
+  const handleCalculate = () => {
+    if (selectedLoan) {
+      axiosInstance
+        .get(`/loans/${selectedLoan}/calculate_interest`)
+        .then((response) => {
+          const { interest, principal, rate, tenure, total_payable } = response.data;
+          setInterest(interest);
+          setPrincipal(principal);
+          setRate(rate);
+          setTenure(tenure);
+          setTotalPayable(total_payable);
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    } else {
+      alert('Please select a loan to calculate interest.');
+    }
   };
 
-    
-    const chartData = {
-        labels: ['Principal amount', 'Interest amount'],
-        datasets: [
-            {
-                label: 'Amount',
-                data: [principal, interest],
-                backgroundColor: ['#4CAF50', '#2196F3'], 
-                hoverBackgroundColor: ['#66BB6A', '#42A5F5']
-            }
-        ]
-    };
+  const handleCalculateDeposit = () => {
+    if (selectedDeposit) {
+      axiosInstance
+        .get(`/deposits/${selectedDeposit}/calculate_interestDeposit`)
+        .then((response) => {
+          const { interest, principal, rate, tenure, total_payable } = response.data;
+          setInterest(interest);
+          setPrincipal(principal);
+          setRate(rate);
+          setTenure(tenure);
+          setTotalPayable(total_payable);
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    } else {
+      alert('Please select a deposit to calculate interest.');
+    }
+  };
 
-    const handleButtonClick = (state) => {
-      setActiveButton(state);
-    };
-    return (
-        <div className='p-4'>
-            <h4 className='d-flex justify-content-center'>Interest Calculator</h4>
-            <div className="d-flex justify-content-center">
-              <b style={{width:'300px'}}
-                className={`btn m-2 ps-5 pe-5 ${activeButton ? 'btn-secondary' : 'btn-outline-secondary'}`} 
-                role="button"
-                onClick={() => handleButtonClick('load')}
-              >
-                Load
-              </b>
-              
-              <b style={{width:'300px'}}
-                className={`btn m-2 ps-5 pe-5 ${!activeButton ? 'btn-secondary' : 'btn-outline-secondary'}`} 
-                role="button"
-                onClick={() => handleButtonClick()}
-              >
-                Deposit
-              </b>
-            </div>
+  const chartData = {
+    labels: ['Principal amount', 'Interest amount'],
+    datasets: [
+      {
+        label: 'Amount',
+        data: [principal, interest],
+        backgroundColor: ['#10B981', '#3B82F6'],
+        hoverBackgroundColor: ['#34D399', '#60A5FA'],
+        borderWidth: 0
+      }
+    ]
+  };
 
-            <div className="row g-3 ms-5 ps-5 mt-2 mb-2">
-                <div className="col-md-8">
-                    <select value={activeButton? selectedLoan : selectedDeposit} className="form-control"
-                            id="validationServer01" onChange={(e) =>activeButton? setSelectedLoan(e.target.value) : setSelectedDeposit(e.target.value)}>
-                        <option value=""> Select Account</option>
-                        {
-                          activeButton?
-                          loans.map((loan) => (
-                            <option key={loan.id} value={loan.id}>
-                                {loan.account_name}
-                            </option>
-                          )) :
-                          deposits.map((deposit) => (
-                            <option key={deposit.id} value={deposit.id}>
-                                {deposit.account_name}
-                            </option>
-                          ))
-                        }
-                    </select>
-                </div>
-                <div className="col-md-4">
-                    <button className='btn btn-outline-secondary' onClick={activeButton? handleCalculate : handleCalculateDeposit}>Calculate Interest</button>
-                </div>
-            </div>
+  const chartOptions = {
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          padding: 20,
+          font: {
+            size: 12
+          }
+        }
+      }
+    },
+    cutout: '70%'
+  };
 
-            
-
-            
-            {interest !== null && (
-                <div className="row mt-4">
-                    <div className="col-md-6">
-                        <div className="slider-section bg-white p-4 rounded-top">
-                            <div>
-                                {principal !== null && (
-                                    <>
-                                       <div className='d-flex justify-content-between'>
-                                       <label>Amount Principal</label>
-                                       <p>{parseFloat(principal).toLocaleString()} MRU</p>
-                                       </div>
-                                       
-                                        <input 
-                                            type="range" 
-                                            min="1000" 
-                                            max="500000" 
-                                            value={principal} 
-                                            className="form-range" 
-                                            disabled 
-                                        />
-                                        
-                                    </>
-                                )}
-                            </div>
-
-                            <div>
-                                
-                                {rate !== null && (
-                                    <>
-                                       <div className='d-flex justify-content-between'>
-                                        <label>Rate of interest (monthly)</label>
-                                        <p>{rate}%</p>
-                                       </div>
-                                        <input 
-                                            type="range" 
-                                            min="0.1" 
-                                            max="20" 
-                                            step="0.1" 
-                                            value={rate} 
-                                            className="form-range" 
-                                            disabled 
-                                        />
-                                        
-                                    </>
-                                )}
-                            </div>
-
-                            <div>
-                                
-                                {tenure !== null && (
-                                    <>
-                                    <div className='d-flex justify-content-between'>
-                                      <label>Tenure</label>
-                                      <p>{tenure} months</p>
-                                    </div>
-                                        <input 
-                                            type="range" 
-                                            min="1" 
-                                            max="60" 
-                                            value={tenure} 
-                                            className="form-range" 
-                                            disabled 
-                                        />
-                                        
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                      
-                        {interest !== null && (
-                            <div className="result-container bg-primary rounded-bottom text-white  p-2">
-                            <div class="row">
-                              <div class="col-6 col-md-4 ">
-                                  <p className='d-flex justify-content-center'>{isNaN(parseFloat(principal)) ? '0.00' : parseFloat(principal).toFixed(2)} MRU</p>
-                                  <b className='d-flex justify-content-center'>Principal</b>
-                              </div>
-                              <div class="col-6 col-md-4">
-                                  <p className='d-flex justify-content-center'>{isNaN(parseFloat(interest)) ? '0.00' : parseFloat(interest).toFixed(2)} MRU</p>
-                                  <b className='d-flex justify-content-center'>Total Interest</b>
-                              </div>
-                              <div class="col-6 col-md-4">
-                                  <p className='d-flex justify-content-center'>{isNaN(parseFloat(totalPayable)) ? '0.00' : parseFloat(totalPayable).toFixed(2)} MRU</p>
-                                  <b className='d-flex justify-content-center'>Total Payable</b>
-                              </div>
-                            </div>
-                              
-                          </div>
-
-                        )}
-                    </div>
-
-                    <div className="col-md-6">
-                        {/* عرض المخطط */}
-                        <div style={{ width: '70%', margin: 'auto' }}>
-                            <Doughnut data={chartData} />
-                        </div>
-                    </div>
-                </div>
-            )}
+  return (
+    <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
+      {/* Tabs */}
+      <div className="flex justify-center mb-6">
+        <div className="inline-flex rounded-md shadow-sm" role="group">
+          <button
+            type="button"
+            className={`px-6 py-3 text-base font-medium rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:z-10 transition-colors duration-200 w-40 ${
+              activeTab === 'loan'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+            onClick={() => setActiveTab('loan')}
+          >
+            Loan
+          </button>
+          <button
+            type="button"
+            className={`px-6 py-3 text-base font-medium rounded-r-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:z-10 transition-colors duration-200 w-40 ${
+              activeTab === 'deposit'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+            onClick={() => setActiveTab('deposit')}
+          >
+            Deposit
+          </button>
         </div>
-    );
+      </div>
+
+      {/* Account selector */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-center mb-8">
+        <div className="w-full md:w-2/3">
+          <select
+            value={activeTab === 'loan' ? selectedLoan : selectedDeposit}
+            onChange={(e) =>
+              activeTab === 'loan'
+                ? setSelectedLoan(e.target.value)
+                : setSelectedDeposit(e.target.value)
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="">Select an Account</option>
+            {activeTab === 'loan'
+              ? loans.map((loan) => (
+                  <option key={loan.id} value={loan.id}>
+                    {loan.account_name}
+                  </option>
+                ))
+              : deposits.map((deposit) => (
+                  <option key={deposit.id} value={deposit.id}>
+                    {deposit.account_name}
+                  </option>
+                ))}
+          </select>
+        </div>
+        <div className="w-full md:w-1/3">
+          <button
+            onClick={activeTab === 'loan' ? handleCalculate : handleCalculateDeposit}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 shadow-sm"
+          >
+            Calculate Interest
+          </button>
+        </div>
+      </div>
+
+      {interest !== null && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Sliders and results */}
+          <div className="flex flex-col">
+            <div className="bg-white rounded-t-lg p-6 shadow-sm">
+              {principal !== null && (
+                <div className="mb-6">
+                  <div className="flex justify-between mb-2">
+                    <label className="text-gray-700 font-medium">Amount Principal</label>
+                    <span className="text-indigo-600 font-bold">
+                      {parseFloat(principal).toLocaleString()} MRU
+                    </span>
+                  </div>
+                  <div className="relative pt-1">
+                    <div className="overflow-hidden h-2 mb-1 text-xs flex rounded bg-blue-100">
+                      <div
+                        style={{ width: `${(principal / 500000) * 100}%` }}
+                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {rate !== null && (
+                <div className="mb-6">
+                  <div className="flex justify-between mb-2">
+                    <label className="text-gray-700 font-medium">Rate of Interest (monthly)</label>
+                    <span className="text-indigo-600 font-bold">{rate}%</span>
+                  </div>
+                  <div className="relative pt-1">
+                    <div className="overflow-hidden h-2 mb-1 text-xs flex rounded bg-blue-100">
+                      <div
+                        style={{ width: `${(rate / 20) * 100}%` }}
+                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tenure !== null && (
+                <div className="mb-2">
+                  <div className="flex justify-between mb-2">
+                    <label className="text-gray-700 font-medium">Tenure</label>
+                    <span className="text-indigo-600 font-bold">{tenure} months</span>
+                  </div>
+                  <div className="relative pt-1">
+                    <div className="overflow-hidden h-2 mb-1 text-xs flex rounded bg-blue-100">
+                      <div
+                        style={{ width: `${(tenure / 60) * 100}%` }}
+                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-b-lg p-5 text-white shadow-lg">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-lg font-bold mb-1">
+                    {isNaN(parseFloat(principal)) ? '0.00' : parseFloat(principal).toLocaleString()} MRU
+                  </p>
+                  <p className="text-xs uppercase tracking-wider">Principal</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold mb-1">
+                    {isNaN(parseFloat(interest)) ? '0.00' : parseFloat(interest).toLocaleString()} MRU
+                  </p>
+                  <p className="text-xs uppercase tracking-wider">Total Interest</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold mb-1">
+                    {isNaN(parseFloat(totalPayable)) ? '0.00' : parseFloat(totalPayable).toLocaleString()} MRU
+                  </p>
+                  <p className="text-xs uppercase tracking-wider">Total {activeTab === 'loan' ? 'Payable' : 'Earnings'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="bg-white rounded-lg p-6 shadow-sm flex items-center justify-center h-full">
+            <div className="w-64 h-64">
+              <Doughnut data={chartData} options={chartOptions} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default InterestCalculator;

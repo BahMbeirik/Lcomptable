@@ -20,6 +20,11 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import JournalEntryList from './pages/Journal';
 import AddJournalEntry from './pages/addJournal'
+import BankingLandingPage from './components/Welcome';
+import AccountDetailPage from './pages/AccountDetailPage';
+import EditAccountPage from './pages/EditAccountPage';
+import ViewJournalEntry from './pages/ViewJournalEntry';
+import EditJournalEntry from './pages/EditJournalEntry';  
 function App() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 
@@ -37,6 +42,7 @@ function App() {
           <Route path='/auth' element={<AuthPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password-confirm" element={<ResetPassword />} />
+          <Route path="/" element={<BankingLandingPage />} />
           {/* صفحات مع sidebar و navbar */}
           <Route
             path="/*"
@@ -49,7 +55,7 @@ function App() {
                   </div>
                   <div className='content-wrapper'>
                   <Routes >
-                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/accounts" element={<AccountsPage />} />
                     <Route path="/transactions" element={<TransactionsPage />} />
                     <Route path="/new-account" element={<NewAccountForm />} />
@@ -60,6 +66,10 @@ function App() {
                     <Route path="/interest-calculator" element={<InterestCalculator />} />
                     <Route path="/journal" element={<JournalEntryList />} />
                     <Route path="/add-journal" element={<AddJournalEntry />} />
+                    <Route path="/account/:id" element={<AccountDetailPage />} />
+                    <Route path="/edit-account/:id" element={<EditAccountPage />} />
+                    <Route path="/view-journal/:id" element={<ViewJournalEntry />} />
+                    <Route path="/edit-journal/:id" element={<EditJournalEntry />} />
                   </Routes>
                   </div>
                 </div>

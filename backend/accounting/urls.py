@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import AccountViewSet, DepositViewSet, JournalEntryDetail, JournalEntryListCreate, LoanViewSet, RegisterView, TransactionViewSet ,LoginView, calculate_deposit_interest, calculate_loan_interest, convert_currency, dashboard_data, financial_report, transaction_report
+from .views import AccountViewSet, DepositViewSet, JournalEntryDetail, JournalEntryListCreate, LoanViewSet, RegisterView, TransactionViewSet ,LoginView, calculate_deposit_interest, calculate_loan_interest, convert_currency, dashboard_data, financial_report, import_csv, transaction_report
 
 router = DefaultRouter()
 router.register(r'accounts', AccountViewSet)
@@ -22,5 +22,7 @@ urlpatterns = [
     path('password_reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
     path('journal-entries/', JournalEntryListCreate.as_view(), name='journal-entry-list-create'),
     path('journal-entries/<int:pk>/', JournalEntryDetail.as_view(), name='journal-entry-detail'),
+
+    path('import-csv/', import_csv, name='import-csv'),
     
 ]

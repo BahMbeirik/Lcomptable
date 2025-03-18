@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../api';
-import { MdEdit ,MdOutlineDelete } from "react-icons/md";
+import { MdEdit, MdOutlineDelete, MdAdd, MdSearch, MdRefresh, MdClose } from "react-icons/md";
 import DataTable from 'react-data-table-component';
 import Loader from './../components/Loader';
 import { toast } from 'react-toastify';
+import { GrTransaction } from "react-icons/gr";
+
 const TransactionsPage = () => {
     const [transactions, setTransactions] = useState([]);
-    const [accounts, setAccounts] = useState([]);  // حالة لتخزين الحسابات
-    const [filteredTransations, setFilteredTransations] = useState([]); // To store filtered accounts
-    const [searchText, setSearchText] = useState(''); // To store the search text
-    let [loading, setLoading] = useState(false);
+    const [accounts, setAccounts] = useState([]);
+    const [filteredTransactions, setFilteredTransactions] = useState([]);
+    const [searchText, setSearchText] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showForm, setShowForm] = useState(false);
 
     const [newTransaction, setNewTransaction] = useState({
         transaction_type: '',
@@ -19,235 +22,556 @@ const TransactionsPage = () => {
     });
     const [editTransaction, setEditTransaction] = useState(null);
 
-    
     useEffect(() => {
         fetchTransactions();
-        fetchAccounts();  // جلب الحسابات عند تحميل الصفحة
+        fetchAccounts();
     }, []);
 
     const fetchTransactions = () => {
-      setLoading(true);
+        setLoading(true);
         axiosInstance.get('/transactions/')
             .then(response => {
                 setTransactions(response.data);
-                setFilteredTransations(response.data);
+                setFilteredTransactions(response.data);
                 setLoading(false);
-                
             })
             .catch(error => {
                 console.log(error);
-                
+                toast.error("Failed to load transactions");
+                setLoading(false);
             });
     };
 
-    // جلب قائمة الحسابات
     const fetchAccounts = () => {
         axiosInstance.get('/accounts/')
             .then(response => {
-                setAccounts(response.data);  // تخزين الحسابات
+                setAccounts(response.data);
             })
             .catch(error => {
                 console.log(error);
+                toast.error("Failed to load accounts");
             });
     };
 
-    // إضافة معاملة جديدة
     const handleAddTransaction = () => {
+        setLoading(true);
         axiosInstance.post('/transactions/', newTransaction)
             .then(() => {
                 setNewTransaction({ transaction_type: '', amount: '', description: '', account: '' });
-                fetchTransactions();  // إعادة جلب المعاملات بعد الإضافة
-                toast.success("A new transaction has been Added!")
+                fetchTransactions();
+                toast.success("New transaction added successfully!");
+                setShowForm(false);
             })
             .catch(error => {
                 console.log(error);
                 if (error.response && error.response.data) {
-                  toast.error(error.response.data);
-              } else {
-                  toast.error("A new transaction has not been added!");
-              }
+                    toast.error(error.response.data);
+                } else {
+                    toast.error("Failed to add transaction!");
+                }
+                setLoading(false);
             });
     };
 
-    // تعديل معاملة
     const handleEditTransaction = (transaction) => {
         setEditTransaction(transaction);
+        setShowForm(true);
     };
 
     const handleUpdateTransaction = () => {
+        setLoading(true);
         axiosInstance.put(`/transactions/${editTransaction.id}/`, editTransaction)
             .then(() => {
                 setEditTransaction(null);
-                fetchTransactions();  // إعادة جلب المعاملات بعد التعديل
-                toast.success("Transaction has been updated!")
+                fetchTransactions();
+                toast.success("Transaction updated successfully!");
+                setShowForm(false);
             })
             .catch(error => {
                 console.log(error);
-                toast.error("Transaction has not updated!")
+                toast.error("Failed to update transaction!");
+                setLoading(false);
             });
     };
 
-    // حذف معاملة
     const handleDeleteTransaction = (transactionId) => {
-        axiosInstance.delete(`/transactions/${transactionId}/`)
-            .then(() => {
-                fetchTransactions();  // إعادة جلب المعاملات بعد الحذف
-                toast.success("Transaction has been deleted!")
-            })
-            .catch(error => {
-                console.log(error);
-                toast.error("Transaction has not deleted!")
-            });
+        if (window.confirm("Are you sure you want to delete this transaction?")) {
+            setLoading(true);
+            axiosInstance.delete(`/transactions/${transactionId}/`)
+                .then(() => {
+                    fetchTransactions();
+                    toast.success("Transaction deleted successfully!");
+                })
+                .catch(error => {
+                    console.log(error);
+                    toast.error("Failed to delete transaction!");
+                    setLoading(false);
+                });
+        }
+    };
+
+    const handleSearch = (event) => {
+        const value = event.target.value;
+        setSearchText(value);
+
+        const filteredData = transactions.filter(transaction =>
+            transaction.transaction_type.toLowerCase().includes(value.toLowerCase()) ||
+            transaction.date.toLowerCase().includes(value.toLowerCase()) ||
+            transaction.amount.toString().includes(value) ||
+            transaction.description.toLowerCase().includes(value.toLowerCase()) ||
+            transaction.account_name.toLowerCase().includes(value.toLowerCase())
+        );
+
+        setFilteredTransactions(filteredData);
+    };
+
+    const resetForm = () => {
+        setEditTransaction(null);
+        setNewTransaction({ transaction_type: '', amount: '', description: '', account: '' });
+        setShowForm(false);
+    };
+
+    // Custom styles for DataTable
+    const customStyles = {
+        headRow: {
+            style: {
+                backgroundColor: '#f8f9fa',
+                borderRadius: '8px 8px 0 0'
+            },
+        },
+        headCells: {
+            style: {
+                fontSize: '14px',
+                fontWeight: '600',
+                paddingLeft: '16px',
+                paddingRight: '16px',
+            },
+        },
+        rows: {
+            style: {
+                fontSize: '14px',
+                minHeight: '56px',
+            },
+            highlightOnHoverStyle: {
+                backgroundColor: '#f1f1f1',
+                transitionDuration: '0.15s',
+                transitionProperty: 'background-color',
+                outlineStyle: 'solid',
+                outlineWidth: '1px',
+                outlineColor: '#e9ecef',
+            },
+        },
+        pagination: {
+            style: {
+                borderRadius: '0 0 8px 8px',
+            },
+        },
+    };
+
+    const containerStyle = {
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: '10px',
+        fontFamily: 'Arial, sans-serif'
+    };
+
+    const cardStyle = {
+        backgroundColor: 'white',
+        borderRadius: '10px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        overflow: 'hidden'
+    };
+
+    const headerStyle = {
+        padding: '20px',
+        borderBottom: '1px solid #e9ecef',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    };
+
+    const headerTitleStyle = {
+        fontSize: '20px',
+        fontWeight: 'bold',
+        color: '#343a40',
+        margin: 0
+    };
+
+    const addButtonStyle = {
+        display: 'flex',
+        alignItems: 'center',
+        backgroundColor: '#3730a3',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        padding: '8px 16px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500',
+        transition: 'background-color 0.2s'
+    };
+
+    const formContainerStyle = {
+        padding: '20px',
+        backgroundColor: '#f8f9fa',
+        borderBottom: '1px solid #e9ecef'
+    };
+
+    const formTitleStyle = {
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#343a40',
+        marginBottom: '15px'
+    };
+
+    const formGridStyle = {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '15px'
+    };
+
+    const inputGroupStyle = {
+        marginBottom: '10px'
+    };
+
+    const labelStyle = {
+        display: 'block',
+        fontSize: '14px',
+        fontWeight: '500',
+        color: '#495057',
+        marginBottom: '5px'
+    };
+
+    const inputStyle = {
+        width: '100%',
+        padding: '10px',
+        border: '1px solid #ced4da',
+        borderRadius: '5px',
+        fontSize: '14px',
+        transition: 'border-color 0.2s',
+        boxSizing: 'border-box'
+    };
+
+    const selectStyle = {
+        ...inputStyle,
+        height: '40px',
+        appearance: 'auto'
+    };
+
+    const formActionStyle = {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: '10px',
+        marginTop: '15px'
+    };
+
+    const cancelButtonStyle = {
+        padding: '8px 16px',
+        backgroundColor: '#e9ecef',
+        color: '#495057',
+        border: 'none',
+        borderRadius: '5px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500'
+    };
+
+    const submitButtonStyle = {
+        padding: '8px 16px',
+        backgroundColor: editTransaction ? '#28a745' : '#3730a3',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500'
+    };
+
+    const searchContainerStyle = {
+        padding: '15px 20px',
+        borderBottom: '1px solid #e9ecef',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    };
+
+    const searchWrapperStyle = {
+        position: 'relative',
+        maxWidth: '400px',
+        width: '100%'
+    };
+
+    const searchIconStyle = {
+        position: 'absolute',
+        left: '10px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        color: '#6c757d'
+    };
+
+    const searchInputStyle = {
+        width: '100%',
+        padding: '10px 10px 10px 35px',
+        border: '1px solid #ced4da',
+        borderRadius: '5px',
+        fontSize: '14px'
+    };
+
+    const tableContainerStyle = {
+        padding: '20px'
+    };
+
+    const actionButtonStyle = {
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        padding: '5px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
     };
 
     // Define columns for DataTable
     const columns = [
-      {
-          name: 'Type',
-          selector: row => row.transaction_type,
-          sortable: true,
-      },
-      {
-          name: 'Date',
-          selector: row => row.date,
-          sortable: true,
-      },
-      {
-          name: 'Amount',
-          selector: row => row.amount,
-          sortable: true,
-      },
-      {
-          name: 'Description',
-          selector: row => row.description,
-          sortable: true,
-      },
-      {
-        name: 'Account',
-        selector: row => row.account_name,
-        sortable: true,
-      },
-      {
-        name: 'Actions',
-        cell: (row) => (
-            <div className='d-flex'>
-                <p className='me-1 text-primary' role="button" onClick={() => handleEditTransaction(row)}>
-                    <MdEdit />
-                </p>
-                <p className='ms-1 text-danger' role="button" onClick={() => handleDeleteTransaction(row.id)}>
-                    <MdOutlineDelete />
-                </p>
-            </div>
-        ),
-        ignoreRowClick: true,
-        allowOverflow: true,
-        button: true,
-    },
-  ];
-
-  // Handle search functionality
-  const handleSearch = (event) => {
-    const value = event.target.value;
-    setSearchText(value);
-
-    const filteredData = transactions.filter(transaction =>
-        transaction.transaction_type.toLowerCase().includes(value.toLowerCase()) ||
-        transaction.date.toLowerCase().includes(value.toLowerCase()) ||
-        transaction.amount.toString().includes(value) ||
-        transaction.description.toLowerCase().includes(value.toLowerCase()) ||
-        transaction.account_name.toLowerCase().includes(value.toLowerCase())
-    );
-
-    setFilteredTransations(filteredData);
-};
+        {
+            name: 'Type',
+            selector: row => row.transaction_type,
+            sortable: true,
+            cell: row => (
+                <div style={{
+                    backgroundColor: row.transaction_type === 'credit' ? '#d4edda' : '#f8d7da',
+                    color: row.transaction_type === 'credit' ? '#155724' : '#721c24',
+                    padding: '4px 8px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                }}>
+                    {row.transaction_type.charAt(0).toUpperCase() + row.transaction_type.slice(1)}
+                </div>
+            ),
+        },
+        {
+            name: 'Date',
+            selector: row => row.date,
+            sortable: true,
+        },
+        {
+            name: 'Amount',
+            selector: row => row.amount,
+            sortable: true,
+            cell: row => (
+                <div style={{ color: row.transaction_type === 'credit' ? '#28a745' : '#dc3545', fontWeight: '500' }}>
+                    {row.transaction_type === 'credit' ? '+' : '-'}{row.amount} MRU
+                </div>
+            ),
+        },
+        {
+            name: 'Description',
+            selector: row => row.description,
+            sortable: true,
+        },
+        {
+            name: 'Account',
+            selector: row => row.account_name,
+            sortable: true,
+        },
+        {
+            name: 'Actions',
+            cell: (row) => (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                        onClick={() => handleEditTransaction(row)}
+                        style={{ ...actionButtonStyle, color: '#4361ee' }}
+                        title="Edit"
+                    >
+                        <MdEdit size={18} />
+                    </button>
+                    <button 
+                        onClick={() => handleDeleteTransaction(row.id)}
+                        style={{ ...actionButtonStyle, color: '#dc3545' }}
+                        title="Delete"
+                    >
+                        <MdOutlineDelete size={18} />
+                    </button>
+                </div>
+            ),
+            ignoreRowClick: true,
+            allowOverflow: true,
+            button: true,
+        },
+    ];
 
     return (
-        <div className='pt-2'>
-        <h4 className='d-flex justify-content-center mb-2'>{editTransaction ? 'Edit Transaction' : 'Add New Transaction'}</h4>
-        <form  onSubmit={(e) => { e.preventDefault(); editTransaction ? handleUpdateTransaction() : handleAddTransaction(); }}>
-          <div className="row g-2">
-            <div className="col-md">
-              <select className="form-select" id="floatingSelectGrid"
-                  value={editTransaction ? editTransaction.transaction_type : newTransaction.transaction_type}
-                  onChange={(e) => editTransaction
-                      ? setEditTransaction({ ...editTransaction, transaction_type: e.target.value })
-                      : setNewTransaction({ ...newTransaction, transaction_type: e.target.value })}
-              >
-                  <option value="">Select Type</option>
-                  <option value="credit">Credit</option>
-                  <option value="debit">Debit</option>
-              </select>
-            </div>
-            <div className="col-md">
-                <input className="form-control" id="floatingInputGrid"
-                    type="number"
-                    value={editTransaction ? editTransaction.amount : newTransaction.amount}
-                    onChange={(e) => editTransaction
-                        ? setEditTransaction({ ...editTransaction, amount: e.target.value })
-                        : setNewTransaction({ ...newTransaction, amount: e.target.value })}
-                    placeholder="Amount"
-                />
-            </div>
-            <div className="col-md">
-                <input className="form-control" id="floatingInputGrid"
-                type="text"
-                value={editTransaction ? editTransaction.description : newTransaction.description}
-                onChange={(e) => editTransaction
-                    ? setEditTransaction({ ...editTransaction, description: e.target.value })
-                    : setNewTransaction({ ...newTransaction, description: e.target.value })}
-                placeholder="Description"
-            />
-            </div>
+        <div style={containerStyle}>
+            <div style={cardStyle}>
+                {/* Header */}
+                <div style={headerStyle}>
+                  <div className="flex items-center  sm:mb-0">
+                          <GrTransaction className="text-3xl text-indigo-600" />
+                          <div className="ml-2">
+                              <h2 className="text-2xl font-bold text-gray-800">Transactions Management</h2>
+                          </div>
+                  </div>
+                    <button
+                        onClick={() => setShowForm(!showForm)}
+                        style={addButtonStyle}
+                    >
+                        {showForm ? (
+                            <>
+                                <MdClose style={{ marginRight: '5px' }} />
+                                Cancel
+                            </>
+                        ) : (
+                            <>
+                                <MdAdd style={{ marginRight: '5px' }} />
+                                New Transaction
+                            </>
+                        )}
+                    </button>
+                </div>
 
-            <div className="col-md">
-              <select className="form-select" id="floatingSelectGrid"
-                value={editTransaction ? editTransaction.account : newTransaction.account}
-                onChange={(e) => editTransaction
-                    ? setEditTransaction({ ...editTransaction, account: e.target.value })
-                    : setNewTransaction({ ...newTransaction, account: e.target.value })}
-                >
-                <option value="">Select Account</option>
-                {accounts.map(account => (
-                    <option key={account.id} value={account.id}>
-                        {account.name}
-                    </option>
-                ))}
-              </select>
-            </div>
-            
-            <button className="btn btn-primary btn-sm ms-1 rounded-pill" type="submit"> {editTransaction ? 'Update' : 'Add'}</button>
+                {/* Transaction Form */}
+                {showForm && (
+                    <div style={formContainerStyle}>
+                        <h3 style={formTitleStyle}>
+                            {editTransaction ? 'Edit Transaction' : 'Add New Transaction'}
+                        </h3>
+                        <form onSubmit={(e) => { e.preventDefault(); editTransaction ? handleUpdateTransaction() : handleAddTransaction(); }}>
+                            <div style={formGridStyle}>
+                                <div style={inputGroupStyle}>
+                                    <label style={labelStyle}>Type</label>
+                                    <select
+                                        style={selectStyle}
+                                        value={editTransaction ? editTransaction.transaction_type : newTransaction.transaction_type}
+                                        onChange={(e) => editTransaction
+                                            ? setEditTransaction({ ...editTransaction, transaction_type: e.target.value })
+                                            : setNewTransaction({ ...newTransaction, transaction_type: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Select Type</option>
+                                        <option value="credit">Credit</option>
+                                        <option value="debit">Debit</option>
+                                    </select>
+                                </div>
+                                <div style={inputGroupStyle}>
+                                    <label style={labelStyle}>Amount</label>
+                                    <input
+                                        type="number"
+                                        style={inputStyle}
+                                        value={editTransaction ? editTransaction.amount : newTransaction.amount}
+                                        onChange={(e) => editTransaction
+                                            ? setEditTransaction({ ...editTransaction, amount: e.target.value })
+                                            : setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                                        placeholder="Amount"
+                                        required
+                                    />
+                                </div>
+                                <div style={inputGroupStyle}>
+                                    <label style={labelStyle}>Description</label>
+                                    <input
+                                        type="text"
+                                        style={inputStyle}
+                                        value={editTransaction ? editTransaction.description : newTransaction.description}
+                                        onChange={(e) => editTransaction
+                                            ? setEditTransaction({ ...editTransaction, description: e.target.value })
+                                            : setNewTransaction({ ...newTransaction, description: e.target.value })}
+                                        placeholder="Description"
+                                        required
+                                    />
+                                </div>
+                                <div style={inputGroupStyle}>
+                                    <label style={labelStyle}>Account</label>
+                                    <select
+                                        style={selectStyle}
+                                        value={editTransaction ? editTransaction.account : newTransaction.account}
+                                        onChange={(e) => editTransaction
+                                            ? setEditTransaction({ ...editTransaction, account: e.target.value })
+                                            : setNewTransaction({ ...newTransaction, account: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Select Account</option>
+                                        {accounts.map(account => (
+                                            <option key={account.id} value={account.id}>
+                                                {account.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div style={formActionStyle}>
+                                <button
+                                    type="button"
+                                    onClick={resetForm}
+                                    style={cancelButtonStyle}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    style={submitButtonStyle}
+                                >
+                                    {editTransaction ? 'Update Transaction' : 'Add Transaction'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
 
-            </div>
-        </form>
+                {/* Search and Filters */}
+                <div style={searchContainerStyle}>
+                    <div style={searchWrapperStyle}>
+                        <div style={searchIconStyle}>
+                            <MdSearch />
+                        </div>
+                        <input
+                            type="text"
+                            style={searchInputStyle}
+                            placeholder="Search transactions..."
+                            value={searchText}
+                            onChange={handleSearch}
+                        />
+                    </div>
+                    <button 
+                        onClick={fetchTransactions}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '8px 12px',
+                            backgroundColor: '#f8f9fa',
+                            border: '1px solid #ced4da',
+                            borderRadius: '5px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <MdRefresh style={{ marginRight: '5px' }} />
+                        Refresh
+                    </button>
+                </div>
 
-
-        <div className='d-flex justify-content-between'>
-          <h4 className='mt-3 '>Transactions</h4>
-          <div>
-            <input style={{width:'400px'}}
-                type="text"
-                placeholder="Search Transactions"
-                className="form-control mt-2"
-                value={searchText}
-                onChange={handleSearch}
-            />
-          </div>
-        </div>
-        <div className="ms-2">
-        
-                <DataTable
-                    columns={columns}
-                    data={filteredTransations} // Display filtered data
-                    pagination
-                    highlightOnHover
-                    striped
-                    paginationRowsPerPageOptions={[5, 10, 15, 20]} 
-                    paginationPerPage={5}
-                />
-                {loading && <Loader loading={loading}/>}
+                {/* DataTable */}
+                <div style={tableContainerStyle}>
+                    <DataTable
+                        columns={columns}
+                        data={filteredTransactions}
+                        customStyles={customStyles}
+                        pagination
+                        highlightOnHover
+                        striped
+                        paginationRowsPerPageOptions={[5, 10, 15, 20]}
+                        paginationPerPage={5}
+                        noDataComponent={
+                            <div style={{
+                                padding: '24px',
+                                textAlign: 'center',
+                                color: '#6c757d'
+                            }}>
+                                No transactions found
+                            </div>
+                        }
+                    />
+                    {loading && <Loader loading={loading}/>}
+                </div>
             </div>
-        
-            
         </div>
     );
 };

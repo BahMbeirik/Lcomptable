@@ -53,3 +53,21 @@ class JournalEntrySerializer(serializers.ModelSerializer):
         representation['debit_account'] = str(instance.debit_account)  # Show account name as string
         representation['credit_account'] = str(instance.credit_account)  # Show account name as string
         return representation
+
+
+class CSVJournalEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JournalEntry
+        fields = ['date', 'description', 'debit_account', 'credit_account', 'debit_amount', 'credit_amount']
+    
+    def validate(self, data):
+        """
+        التحقق من صحة البيانات قبل الحفظ
+        """
+        if data['debit_amount'] != data['credit_amount']:
+            raise serializers.ValidationError("Debit and Credit amounts must be equal.")
+        
+        if data['debit_account'].balance < data['debit_amount']:
+            raise serializers.ValidationError(f"Insufficient balance in debit account {data['debit_account']}.")
+
+        return data

@@ -21,3 +21,7 @@ code {
   padding: 1px;
   margin-top: 4px;
 }
+
+.SB{
+  min-height: 100vh;
+}

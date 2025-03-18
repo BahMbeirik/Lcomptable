@@ -6,236 +6,238 @@ import Loader from './Loader';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-
 const Dashboard = () => {
-    const [dashboardData, setDashboardData] = useState(null);
-    let [loading, setLoading] = useState(false);
-    useEffect(() => {
-        setLoading(true)
-        axiosInstance.get('/dashboard-data/')
-            .then(
-              (response) => {
-                setDashboardData(response.data)
-                setLoading(false)
-              })
-            .catch((error) => console.error('Error fetching dashboard data:', error));
-    }, []);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    setLoading(true);
+    axiosInstance.get('/dashboard-data/')
+      .then((response) => {
+        setDashboardData(response.data);
+        setLoading(false);
+      })
+      .catch((error) => console.error('Error fetching dashboard data:', error));
+  }, []);
 
-    if (!dashboardData) {
-        return <div>{loading && <Loader loading={loading}/>}</div>;
-    }
+  if (!dashboardData) {
+    return <div className="flex justify-center items-center h-screen">{loading && <Loader loading={loading} />}</div>;
+  }
 
-    // Check if total_balances_by_type exists before using map
-    const accountTypeLabels = dashboardData.account_balances_by_type ? dashboardData.account_balances_by_type.map(item => item.account_type) : [];
-    const accountTypeData = dashboardData.account_balances_by_type ? dashboardData.account_balances_by_type.map(item => item.total_balance) : [];
-    const colors = ['#36a2eb', '#ff6384', '#ffce56', '#4bc0c0', '#9966ff']; // ألوان مخصصة لكل نوع حساب
+  // Account type data
+  const accountTypeLabels = dashboardData.account_balances_by_type?.map(item => item.account_type) || [];
+  const accountTypeData = dashboardData.account_balances_by_type?.map(item => item.total_balance) || [];
+  const colors = ['#36a2eb', '#ff6384', '#ffce56', '#4bc0c0', '#9966ff'];
+  const totalBalance = accountTypeData.reduce((a, b) => a + b, 0);
 
-    const totalBalance = accountTypeData.reduce((a, b) => a + b, 0);
-
-    // Data for the credit/debit chart
-    const creditDebitData = {
-        labels: ['Credit', 'Debit'],
-        datasets: [
-            {
-                label: 'Credit vs Debit',
-                data: [dashboardData.transactions.total_credit, dashboardData.transactions.total_debit],
-                backgroundColor: ['#4e73df', '#1cc88a'],
-                hoverBackgroundColor: ['#2e59d9', '#17a673'],
-                borderWidth: 1,
-            },
-        ],
-    };
-
-    const accountTypeChartData = {
-        labels: accountTypeLabels,
-        datasets: accountTypeData.map((value, index) => ({
-            data: [value, totalBalance - value], // جزء الحساب والنسبة المتبقية
-            backgroundColor: [colors[index], '#f0f0f0'], // لون الحساب و جزء فارغ
-            hoverBackgroundColor: [colors[index], '#f0f0f0'],
-            borderWidth: 10,
-            borderRadius: 10,
-            cutout: '50%', // للتحكم في حجم الدائرة الداخلية
-        }))
-    };
-    
-    const options = {
-      responsive: true,
-      maintainAspectRatio: false,
-      circumference: 290,  // رسم نصف الدائرة
-      rotation: 0,  // بدء الرسم من الأعلى
-      plugins: {
-          tooltip: {
-              callbacks: {
-                  label: function (tooltipItem) {
-                      const value = accountTypeData[tooltipItem.dataIndex];
-                      const percentage = ((value / totalBalance) * 100).toFixed(2);
-                      return `${tooltipItem.label}: ${value} (${percentage}%)`;
-                  },
-              },
-          },
-          legend: {
-              display: false, // Hides the legend to customize
-          },
+  // Credit/Debit chart data
+  const creditDebitData = {
+    labels: ['Credit', 'Debit'],
+    datasets: [
+      {
+        label: 'Credit vs Debit',
+        data: [dashboardData.transactions.total_credit, dashboardData.transactions.total_debit],
+        backgroundColor: ['#4e73df', '#1cc88a'],
+        hoverBackgroundColor: ['#2e59d9', '#17a673'],
+        borderWidth: 0,
       },
+    ],
   };
 
-    return (
-        <div className='ps-2 pe-2 bg-white'>
-            <h4 className='d-flex justify-content-center mb-2'>Dashboard</h4>
+  // Account type chart data
+  const accountTypeChartData = {
+    labels: accountTypeLabels,
+    datasets: [{
+      data: accountTypeData,
+      backgroundColor: colors.slice(0, accountTypeLabels.length),
+      hoverBackgroundColor: colors.slice(0, accountTypeLabels.length),
+      borderWidth: 0,
+    }]
+  };
+  
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: function (tooltipItem) {
+            const value = accountTypeData[tooltipItem.dataIndex];
+            const percentage = ((value / totalBalance) * 100).toFixed(2);
+            return `${tooltipItem.label}: ${value} (${percentage}%)`;
+          },
+        },
+      },
+      legend: {
+        position: 'bottom',
+        labels: {
+          padding: 20,
+          font: {
+            size: 12
+          }
+        }
+      },
+    },
+  };
 
-            <div className='d-flex justify-content-between'>
-               <div  style={{ width: 32 +'%'}}>
-                  <h5>Credit vs Debit</h5>
-                  <hr />
-                 {/* Doughnut chart for Credit/Debit */}
-                    <div style={{ width: '200px', margin: 'auto' }}>
-                    
-                    <Doughnut data={creditDebitData} />
-                </div>
-               </div>
-
-               <div  style={{width: 32 +'%'}} >
-                {/* Top 3 Loans */}
-                 <div className='card border-0' style={{width: 21 +'rem'}}>
-                  <div className='card-header bg-white' style={{height:'40px'}}><h5>Top 3 Loans</h5></div>
-                  
-                  
-                    {dashboardData.top_loans && dashboardData.top_loans.length > 0 ? (
-                      <ul className='list-group list-group-flush'>
-                          {dashboardData.top_loans.map((loan, index) => (
-                              <li key={index} className={`list-group-item  d-flex justify-content-between border-3 border-top-0  border-bottom-0  border-primary mb-1 bg-light-subtle ${index%2===0 ? "border-end-0" : "border-start-0"}`} style={{height:'30px'}}>
-                                
-                                  <b>{loan.account}</b> 
-                                  <b>{loan.amount} MRU</b> 
-                              
-                              </li>
-                          ))}
-                      </ul>
-                    ) : (
-                        <p>No loan data available</p>
-                    )}
-                    </div>
-
-                  {/* Top 3 Deposits */}
-                  <div className='card border-0' style={{width: 21 +'rem'}}>
-                  <div className='card-header bg-white' style={{height:'40px'}}><h5>Top 3 Deposits</h5></div>
-                  
-                  
-                    {dashboardData.top_deposits && dashboardData.top_deposits.length > 0 ? (
-                      <ul className='list-group list-group-flush'>
-                          {dashboardData.top_deposits.map((deposit, index) => (
-                              <li key={index} className={`list-group-item  d-flex justify-content-between border-3 border-top-0  border-bottom-0  border-warning mb-1 bg-light-subtle ${index%2===0 ? "border-end-0" : "border-start-0"}`} style={{height:'30px'}}>
-                              <b>{deposit.account}</b>
-                              <b>{deposit.amount} MRU</b>
-                              </li>
-                          ))}
-                      </ul>
-                    ) : (
-                        <p>No deposit data available</p>
-                    )}
-                  </div>
-                  
-               </div>
-               {/* Doughnut chart for Account Types */}
-               <div style={{ width: '32%'}}>
-               <h5>Account Types</h5>
-               <hr />
-               <div className='d-flex' style={{ height:'240px'}} >
-               <div className='SCCT'  >
-                    {accountTypeLabels.map((label, index) => {
-                      const percentage = ((accountTypeData[index] / totalBalance) * 100).toFixed(2);
-                        return(
-                        <div key={index} style={{ color: colors[index], fontWeight: 'bold' }}>
-                            {label}: {accountTypeData[index]} MRU
-                            <span> ({percentage}%)</span>
-                        </div>
-                        )
-                    })}
-                </div>
-                <div className='ms-5'>
-                <Doughnut data={accountTypeChartData} options={options} />
-                </div>
-                
-                </div>
-               
-               </div>
+  return (
+    <div className="bg-gray-50 min-h-screen p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Credit vs Debit Section */}
+        <div className="bg-white rounded-lg shadow-md p-4 h-full">
+          <h3 className="text-lg font-bold text-indigo-800 mb-2">Credit vs Debit</h3>
+          <div className="border-b border-gray-200 mb-4"></div>
+          <div className="h-64 flex items-center justify-center">
+            <div className="w-48">
+              <Doughnut data={creditDebitData} options={{ maintainAspectRatio: true }} />
             </div>
-
-            <div className='d-flex justify-content-between mt-4'>
-               <div  style={{ width: 32 +'%'}}>
-                  <h5>Top 5 Accounts</h5>
-                  <hr />
-                  <table className='table table-sm table-striped  border-start border-primary border border-3 border-top-0 border-end-0 border-bottom-0 ' >
-                        {dashboardData.top_account && dashboardData.top_account.length > 0 ? (
-                          <tbody className='border border-light-subtle'>
-                              {dashboardData.top_account.slice(0, 5).map((account, index) => (
-                                  <tr key={index}>
-                                  <td className='d-flex justify-content-between'>
-                                    <b>{account.name}</b> 
-                                    <b>{account.balance} MRU</b> 
-                                  </td>
-                                  
-                                  </tr>
-                              ))}
-                          </tbody>
-                      ) : (
-                          <p>No credit transactions available</p>
-                      )}
-                  </table>
-                  
-                </div>
-                <div  style={{ width: 33 +'%'}}>
-                  <h5>Top 5 Credits</h5>
-                  <hr />
-                  <table className="table table-sm table-striped border-start-0 border-warning border border-3 border-top-0 border-end-0 border-bottom ">
-                    {dashboardData.top_credit && dashboardData.top_credit.length > 0 ? (
-                      <tbody className='border border-light-subtle'>
-                          {dashboardData.top_credit.slice(0, 5).map((transaction, index) => (
-                              <tr key={index}>
-                              <td className='d-flex justify-content-between'>
-                                <b>{transaction.account}</b> 
-                                <b>{transaction.amount} MRU</b> 
-                                <b>{new Date(transaction.date).toLocaleDateString()}</b>
-                              </td>
-                              
-                              </tr>
-                          ))}
-                        </tbody>
-                  ) : (
-                      <p>No credit transactions available</p>
-                  )}
-                    
-                    
-                  </table>
-                  
-                </div>
-                <div  style={{ width: 32 +'%'}}>
-                  <h5>Top 5 Debits</h5>
-                  <hr />
-                  <table class="table table-sm table-striped  border-start-0 border-primary border border-3 border-top-0 border-end border-bottom-0 ">
-                      {dashboardData.top_debit && dashboardData.top_debit.length > 0 ? (
-                        <tbody className='border border-light-subtle'>
-                            {dashboardData.top_debit.slice(0, 5).map((transaction, index) => (
-                                <tr key={index}>
-                                <td className='d-flex justify-content-between'>
-                                  <b>{transaction.account}</b> 
-                                  <b>{transaction.amount} MRU</b> 
-                                  <b>{new Date(transaction.date).toLocaleDateString()}</b>
-                              </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    ) : (
-                        <p>No debit transactions available</p>
-                    )}
-                  </table>
-                  
-                </div>
-            </div>
-            
-            
+          </div>
         </div>
-    );
+
+        {/* Loans and Deposits Section */}
+        <div className="bg-white rounded-lg shadow-md p-4 h-full">
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-indigo-800 mb-2">Top 3 Loans</h3>
+            <div className="border-b border-gray-200 mb-4"></div>
+            {dashboardData.top_loans && dashboardData.top_loans.length > 0 ? (
+              <ul className="divide-y divide-gray-100">
+                {dashboardData.top_loans.map((loan, index) => (
+                  <li key={index} className="py-2 flex justify-between items-center">
+                    <span className="font-semibold">{loan.account}</span>
+                    <span className="font-semibold text-indigo-700">{loan.amount} MRU</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500 italic">No loan data available</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-lg font-bold text-indigo-800 mb-2">Top 3 Deposits</h3>
+            <div className="border-b border-gray-200 mb-4"></div>
+            {dashboardData.top_deposits && dashboardData.top_deposits.length > 0 ? (
+              <ul className="divide-y divide-gray-100">
+                {dashboardData.top_deposits.map((deposit, index) => (
+                  <li key={index} className="py-2 flex justify-between items-center">
+                    <span className="font-semibold">{deposit.account}</span>
+                    <span className="font-semibold text-amber-600">{deposit.amount} MRU</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500 italic">No deposit data available</p>
+            )}
+          </div>
+        </div>
+
+        {/* Account Types Section */}
+        <div className="bg-white rounded-lg shadow-md p-4 h-full">
+          <h3 className="text-lg font-bold text-indigo-800 mb-2">Account Types</h3>
+          <div className="border-b border-gray-200 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="h-64">
+              <Doughnut data={accountTypeChartData} options={options} />
+            </div>
+            <div className="flex flex-col justify-center space-y-2">
+              {accountTypeLabels.map((label, index) => {
+                const percentage = ((accountTypeData[index] / totalBalance) * 100).toFixed(2);
+                return (
+                  <div key={index} className="flex items-center">
+                    <div className="w-4 h-4 mr-2" style={{ backgroundColor: colors[index] }}></div>
+                    <span className="text-sm">{label}: <span className="font-semibold">{accountTypeData[index]} MRU</span> <span className="text-gray-600 text-xs">({percentage}%)</span></span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Second Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {/* Top Accounts */}
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-bold text-indigo-800 mb-2">Top 5 Accounts</h3>
+          <div className="border-b border-gray-200 mb-4"></div>
+          {dashboardData.top_account && dashboardData.top_account.length > 0 ? (
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
+                  {dashboardData.top_account.slice(0, 5).map((account, index) => (
+                    <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="py-3 pl-4">
+                        <div className="flex justify-between">
+                          <span className="font-medium">{account.name}</span>
+                          <span className="font-medium text-indigo-700">{account.balance} MRU</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500 italic">No account data available</p>
+          )}
+        </div>
+
+        {/* Top Credits */}
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-bold text-indigo-800 mb-2">Top 5 Credits</h3>
+          <div className="border-b border-gray-200 mb-4"></div>
+          {dashboardData.top_credit && dashboardData.top_credit.length > 0 ? (
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
+                  {dashboardData.top_credit.slice(0, 5).map((transaction, index) => (
+                    <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="py-3 pl-4">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{transaction.account}</span>
+                          <span className="font-medium text-green-600">{transaction.amount} MRU</span>
+                          <span className="text-sm text-gray-500">{new Date(transaction.date).toLocaleDateString()}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500 italic">No credit transactions available</p>
+          )}
+        </div>
+
+        {/* Top Debits */}
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-bold text-indigo-800 mb-2">Top 5 Debits</h3>
+          <div className="border-b border-gray-200 mb-4"></div>
+          {dashboardData.top_debit && dashboardData.top_debit.length > 0 ? (
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
+                  {dashboardData.top_debit.slice(0, 5).map((transaction, index) => (
+                    <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="py-3 pl-4">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{transaction.account}</span>
+                          <span className="font-medium text-red-600">{transaction.amount} MRU</span>
+                          <span className="text-sm text-gray-500">{new Date(transaction.date).toLocaleDateString()}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500 italic">No debit transactions available</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Dashboard;

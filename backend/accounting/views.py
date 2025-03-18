@@ -1,3 +1,4 @@
+import csv
 import datetime
 from decimal import Decimal
 from django.http import JsonResponse
@@ -6,7 +7,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Account, Deposit, Loan, Transaction, JournalEntry
-from .serializers import AccountSerializer, DepositSerializer, LoanSerializer, TransactionSerializer ,JournalEntrySerializer
+from .serializers import AccountSerializer, CSVJournalEntrySerializer, DepositSerializer, LoanSerializer, TransactionSerializer ,JournalEntrySerializer
 import requests 
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework import status
@@ -22,6 +23,9 @@ from django.db.models import Sum
 from datetime import datetime
 from django.utils import timezone
 from rest_framework import generics
+from django.utils.dateparse import parse_date
+from django.views.decorators.csrf import csrf_exempt
+
 # Create your views here.
 
 class LoginSerializer(Serializer):
@@ -276,7 +280,7 @@ def get_exchange_rate(from_currency, to_currency):
 
 def convert_currency(request, from_currency, to_currency, amount):
     try:
-        amount = float(amount)  # تحويل المبلغ إلى float
+        amount = float(amount)  
         rate = get_exchange_rate(from_currency, to_currency)
         converted_amount = round(amount * rate, 2)
         return JsonResponse({'converted_amount': converted_amount})
@@ -418,13 +422,66 @@ def dashboard_data(request):
 
     return Response(data)
 
-# عرض جميع القيود اليومية وإنشاء قيد جديد
 class JournalEntryListCreate(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     queryset = JournalEntry.objects.all()
     serializer_class = JournalEntrySerializer
 
-# تعديل أو حذف قيد محدد
 class JournalEntryDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = JournalEntry.objects.all()
     serializer_class = JournalEntrySerializer
+
+
+@csrf_exempt
+def import_csv(request):
+    if request.method == 'POST' and request.FILES.get('file'):
+        csv_file = request.FILES['file']
+
+        if not csv_file.name.endswith('.csv'):
+            return JsonResponse({'error': 'الملف يجب أن يكون بصيغة CSV'}, status=400)
+
+        decoded_file = csv_file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+
+        errors = []
+        success_count = 0
+
+        for row in reader:
+            try:
+                date = parse_date(row['date'])
+                debit_amount = float(row['debit_amount'])
+                credit_amount = float(row['credit_amount'])
+
+                debit_account = Account.objects.get(id=row['debit_account_name'])
+                credit_account = Account.objects.get(id=row['credit_account_name'])
+
+                entry_data = {
+                    "date": date,
+                    "description": row['description'],
+                    "debit_account": debit_account.id,
+                    "credit_account": credit_account.id,
+                    "debit_amount": debit_amount,
+                    "credit_amount": credit_amount
+                }
+
+                serializer = CSVJournalEntrySerializer(data=entry_data)
+
+                if serializer.is_valid():
+                    serializer.save()
+                    success_count += 1
+                else:
+                    errors.append(serializer.errors)
+
+            except Account.DoesNotExist:
+                errors.append(f"حساب غير موجود في الصف: {row}")
+            except ValueError:
+                errors.append(f"تنسيق غير صحيح للأرقام أو التاريخ في الصف: {row}")
+            except Exception as e:
+                errors.append(f"خطأ غير متوقع في الصف {row}: {e}")
+
+        return JsonResponse({
+            'message': f'تم استيراد {success_count} إدخالات بنجاح!',
+            'errors': errors
+        })
+
+    return JsonResponse({'error': 'يجب رفع ملف CSV'}, status=400)
