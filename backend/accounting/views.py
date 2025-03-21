@@ -2,14 +2,13 @@ import csv
 import datetime
 from decimal import Decimal
 from django.http import JsonResponse
-from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Account, Deposit, Loan, Transaction, JournalEntry
-from .serializers import AccountSerializer, CSVJournalEntrySerializer, DepositSerializer, LoanSerializer, TransactionSerializer ,JournalEntrySerializer
+from .serializers import AccountSerializer, DepositSerializer, LoanSerializer, TransactionSerializer ,JournalEntrySerializer
 import requests 
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
@@ -23,8 +22,11 @@ from django.db.models import Sum
 from datetime import datetime
 from django.utils import timezone
 from rest_framework import generics
-from django.utils.dateparse import parse_date
+import csv
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from io import TextIOWrapper
 
 # Create your views here.
 
@@ -432,56 +434,59 @@ class JournalEntryDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = JournalEntrySerializer
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 @csrf_exempt
 def import_csv(request):
-    if request.method == 'POST' and request.FILES.get('file'):
-        csv_file = request.FILES['file']
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
 
-        if not csv_file.name.endswith('.csv'):
-            return JsonResponse({'error': 'الملف يجب أن يكون بصيغة CSV'}, status=400)
+    file = request.FILES['file']
+    if not file.name.endswith('.csv'):
+        return JsonResponse({'error': 'File is not a CSV'}, status=400)
 
-        decoded_file = csv_file.read().decode('utf-8').splitlines()
-        reader = csv.DictReader(decoded_file)
-
-        errors = []
-        success_count = 0
+    try:
+        csv_file = TextIOWrapper(file, encoding='utf-8')
+        # Utiliser le séparateur ';' pour lire le fichier CSV
+        reader = csv.DictReader(csv_file, delimiter=';')
 
         for row in reader:
             try:
-                date = parse_date(row['date'])
-                debit_amount = float(row['debit_amount'])
-                credit_amount = float(row['credit_amount'])
+                # Parse CSV row
+                date = datetime.strptime(row['date'], '%Y-%m-%d').date()
+                description = row['description']
+                debit_account_name = row['debit_account']
+                credit_account_name = row['credit_account']
+                debit_amount = Decimal(row['debit_amount'])
+                credit_amount = Decimal(row['credit_amount'])
 
-                debit_account = Account.objects.get(id=row['debit_account_name'])
-                credit_account = Account.objects.get(id=row['credit_account_name'])
+                # Validate that debit and credit amounts are equal
+                if debit_amount != credit_amount:
+                    return JsonResponse({'error': 'Debit and Credit amounts must be equal'}, status=400)
 
-                entry_data = {
-                    "date": date,
-                    "description": row['description'],
-                    "debit_account": debit_account.id,
-                    "credit_account": credit_account.id,
-                    "debit_amount": debit_amount,
-                    "credit_amount": credit_amount
-                }
+                # Fetch accounts by name
+                try:
+                    debit_account = Account.objects.get(name=debit_account_name)
+                    credit_account = Account.objects.get(name=credit_account_name)
+                except Account.DoesNotExist:
+                    return JsonResponse({'error': f'Account not found: {debit_account_name} or {credit_account_name}'}, status=400)
 
-                serializer = CSVJournalEntrySerializer(data=entry_data)
+                # Create JournalEntry
+                JournalEntry.objects.create(
+                    date=date,
+                    description=description,
+                    debit_account=debit_account,
+                    credit_account=credit_account,
+                    debit_amount=debit_amount,
+                    credit_amount=credit_amount
+                )
 
-                if serializer.is_valid():
-                    serializer.save()
-                    success_count += 1
-                else:
-                    errors.append(serializer.errors)
+            except KeyError as e:
+                return JsonResponse({'error': f'Missing key in CSV: {str(e)}'}, status=400)
+            except ValueError as e:
+                return JsonResponse({'error': f'Invalid value in CSV: {str(e)}'}, status=400)
 
-            except Account.DoesNotExist:
-                errors.append(f"حساب غير موجود في الصف: {row}")
-            except ValueError:
-                errors.append(f"تنسيق غير صحيح للأرقام أو التاريخ في الصف: {row}")
-            except Exception as e:
-                errors.append(f"خطأ غير متوقع في الصف {row}: {e}")
+        return JsonResponse({'message': 'CSV imported successfully'}, status=200)
 
-        return JsonResponse({
-            'message': f'تم استيراد {success_count} إدخالات بنجاح!',
-            'errors': errors
-        })
-
-    return JsonResponse({'error': 'يجب رفع ملف CSV'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)    

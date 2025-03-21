@@ -2,19 +2,21 @@ import React, { useState, useEffect } from 'react';
 import axiosInstance from '../api';
 import { IoIosAddCircle } from "react-icons/io";
 import { FiSearch, FiEdit, FiEye } from "react-icons/fi";
-import { HiOutlineDocumentText } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import DataTable from 'react-data-table-component';
 import Loader from './../components/Loader';
-import Papa from 'papaparse';
 import { LuImport } from "react-icons/lu";
-
+import { toast } from 'react-toastify';
+import { HiOutlineDocumentText, HiOutlineInformationCircle, HiOutlineDownload, HiOutlineChevronDown, HiOutlineChevronUp } from "react-icons/hi";
 const JournalEntryList = () => {
   const [entries, setEntries] = useState([]);
   const [search, setSearch] = useState('');
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showImportGuide, setShowImportGuide] = useState(false);
+  const [activeSection, setActiveSection] = useState('format');
   const navigate = useNavigate();
+
 
   useEffect(() => {
     fetchData();
@@ -36,36 +38,38 @@ const JournalEntryList = () => {
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function (results) {
-          const formattedData = results.data.map(row => ({
-            date: row.Date,
-            description: row.Description,
-            debit_account: row['Débit - Compte'],
-            debit_amount: parseFloat(row['Montant Débit']) || 0,
-            credit_account: row['Crédit - Compte'],
-            credit_amount: parseFloat(row['Montant Crédit']) || 0,
-          }));
-          sendCSVDataToBackend(formattedData);
-        },
-      });
-    }
+    if (!file) return;
+  
+    const formData = new FormData();
+    formData.append('file', file);
+  
+    setLoading(true);
+    axiosInstance.post('/import-csv/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    .then(response => {
+      setLoading(false);
+      toast.success("CSV imported Successful!");
+      fetchData(); // Refresh the data after import
+    })
+    .catch(error => {
+      setLoading(false);
+      if (error.response && error.response.data.error) {
+        toast.error("Error importing CSV!");
+        console.error('Error importing CSV:', error.response.data.error);
+      } else {
+        toast.error("Error importing CSV!");
+        console.error('Error importing CSV:', error.message);
+      }
+    });
   };
 
-  const sendCSVDataToBackend = (data) => {
-    axiosInstance.post('/import-csv/', { entries: data })
-      .then(response => {
-        alert("Importation réussie !");
-        fetchData();
-      })
-      .catch(error => {
-        console.error("Erreur d'importation :", error);
-        alert("Échec de l'importation");
-      });
+  const toggleSection = (section) => {
+    setActiveSection(activeSection === section ? null : section);
   };
+  
   
 
   // Format currency
@@ -275,13 +279,21 @@ const JournalEntryList = () => {
             <input
               type="file"
               accept=".csv"
-              onChange={handleFileUpload}
               className="hidden"
+              onChange={handleFileUpload}
               id="csvUpload"
             />
+            <button 
+              onClick={() => setShowImportGuide(!showImportGuide)}
+              className="cursor-pointer flex items-center px-3 py-2 border rounded-lg text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+            >
+              <HiOutlineInformationCircle className="h-5 w-5 mr-1" /> Aide CSV
+            </button>
+
             <label htmlFor="csvUpload" className="cursor-pointer flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium bg-gray-200 hover:bg-gray-300">
               <LuImport className="h-5 w-5 mr-2" /> Importer CSV
             </label>
+
             <button
               onClick={() => navigate('/add-journal')}
               className="inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
@@ -347,7 +359,177 @@ const JournalEntryList = () => {
             </>
           )}
         </div>
+
+        {/* Guide d'importation CSV */}
+        {showImportGuide && (
+          <div className="bg-white border-b border-gray-200">
+            <div className="p-4">
+              <div className="bg-white rounded-lg overflow-hidden">
+                <div className="p-4">
+                  <p className="text-gray-600 mb-4">
+                    Pour importer vos écritures comptables, veuillez suivre les instructions ci-dessous concernant le format du fichier CSV.
+                  </p>
+                  
+                  {/* Format requis */}
+                  <div className="border border-gray-200 rounded-lg mb-4">
+                    <button
+                      className="w-full flex justify-between items-center p-4 text-left font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={() => toggleSection('format')}
+                    >
+                      <span>1. Format requis du fichier CSV</span>
+                      {activeSection === 'format' ? 
+                        <HiOutlineChevronUp className="w-5 h-5 text-gray-500" /> : 
+                        <HiOutlineChevronDown className="w-5 h-5 text-gray-500" />
+                      }
+                    </button>
+                    
+                    {activeSection === 'format' && (
+                      <div className="p-4 border-t border-gray-200 bg-gray-50">
+                        <p className="mb-3">Votre fichier CSV doit contenir les colonnes suivantes (dans cet ordre exact) :</p>
+                        <div className="overflow-x-auto mb-3">
+                          <table className="min-w-full bg-white border border-gray-200">
+                            <thead>
+                              <tr className="bg-gray-50">
+                                <th className="py-2 px-3 border-b border-r text-xs font-medium text-gray-600">date</th>
+                                <th className="py-2 px-3 border-b border-r text-xs font-medium text-gray-600">description</th>
+                                <th className="py-2 px-3 border-b border-r text-xs font-medium text-gray-600">debit_account</th>
+                                <th className="py-2 px-3 border-b border-r text-xs font-medium text-gray-600">debit_amount</th>
+                                <th className="py-2 px-3 border-b border-r text-xs font-medium text-gray-600">credit_account</th>
+                                <th className="py-2 px-3 border-b text-xs font-medium text-gray-600">credit_amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td className="py-2 px-3 border-b border-r text-xs">2025-03-15</td>
+                                <td className="py-2 px-3 border-b border-r text-xs">Achat fournitures</td>
+                                <td className="py-2 px-3 border-b border-r text-xs">bahah</td>
+                                <td className="py-2 px-3 border-b border-r text-xs">150.00</td>
+                                <td className="py-2 px-3 border-b border-r text-xs">Ali</td>
+                                <td className="py-2 px-3 border-b text-xs">150.00</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="bg-blue-50 p-3 rounded-md text-xs text-blue-700">
+                          <div className="flex">
+                            <HiOutlineInformationCircle className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-medium mb-1">Formats acceptés :</p>
+                              <ul className="list-disc pl-5 space-y-1">
+                                <li>Date : <span className="font-mono">YYYY-MM-DD</span> (ex: 2025-03-15)</li>
+                                <li>Montants : Utiliser le point comme séparateur décimal (ex: 150.00)</li>
+                                <li>Comptes : Numéros du plan comptable sans espaces ni tirets</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Règles d'équilibrage */}
+                  <div className="border border-gray-200 rounded-lg mb-4">
+                    <button
+                      className="w-full flex justify-between items-center p-4 text-left font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={() => toggleSection('rules')}
+                    >
+                      <span>2. Règles d'équilibrage</span>
+                      {activeSection === 'rules' ? 
+                        <HiOutlineChevronUp className="w-5 h-5 text-gray-500" /> : 
+                        <HiOutlineChevronDown className="w-5 h-5 text-gray-500" />
+                      }
+                    </button>
+                    
+                    {activeSection === 'rules' && (
+                      <div className="p-4 border-t border-gray-200 bg-gray-50">
+                        <p className="mb-3">Chaque ligne importée doit respecter les règles comptables suivantes :</p>
+                        <ul className="list-disc pl-5 space-y-2 mb-3">
+                          <li>Les montants débit et crédit doivent être égaux pour chaque écriture</li>
+                          <li>Les comptes débit et crédit doivent être des numéros valides selon votre plan comptable</li>
+                          <li>Une description est obligatoire pour chaque écriture</li>
+                          <li>Les dates doivent être valides et au format correct</li>
+                        </ul>
+                        <div className="bg-yellow-50 p-3 rounded-md text-xs text-yellow-700">
+                          <div className="flex">
+                            <HiOutlineInformationCircle className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <p>
+                              <span className="font-medium">Attention :</span> Les écritures non équilibrées ou avec des erreurs ne seront pas importées. Le système vous indiquera les lignes problématiques.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Exemple et modèle */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      className="w-full flex justify-between items-center p-4 text-left font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={() => toggleSection('example')}
+                    >
+                      <span>3. Exemple et modèle</span>
+                      {activeSection === 'example' ? 
+                        <HiOutlineChevronUp className="w-5 h-5 text-gray-500" /> : 
+                        <HiOutlineChevronDown className="w-5 h-5 text-gray-500" />
+                      }
+                    </button>
+                    
+                    {activeSection === 'example' && (
+                      <div className="p-4 border-t border-gray-200 bg-gray-50">
+                        <p className="mb-3">Pour vous aider à démarrer, voici un exemple de contenu CSV valide :</p>
+                        
+                        <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto mb-4 text-gray-700">
+                            date;description;debit_account;debit_amount;credit_account;credit_amount
+                            2025-03-10;Vente marchandises;Sara;120.00;Med;120.00
+                            2025-03-12;Paiement loyer;Sidi;800.00;Cheikh;800.00
+                        </pre>
+                        
+                        <div className="flex justify-center mb-3">
+                          <button className="flex items-center px-4 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition text-sm">
+                            <HiOutlineDownload className="h-4 w-4 mr-2" />
+                            Télécharger le modèle CSV
+                          </button>
+                        </div>
+                        
+                        <div className="bg-green-50 p-3 rounded-md text-xs text-green-700">
+                          <div className="flex">
+                            <HiOutlineInformationCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <p>
+                              <span className="font-medium">Conseil :</span> Vous pouvez créer votre fichier CSV avec Excel ou Google Sheets, puis l'exporter au format CSV.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowImportGuide(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-sm"
+                    >
+                      Fermer
+                    </button>
+                    
+                    <label 
+                      htmlFor="csvUpload" 
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 cursor-pointer text-sm flex items-center"
+                      onClick={() => setShowImportGuide(false)}
+                    >
+                      Choisir un fichier CSV
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
+
+    
     </div>
   );
 };

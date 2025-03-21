@@ -1,8 +1,25 @@
+/* eslint-disable jsx-a11y/anchor-is-valid */
 import React from 'react';
 import { Shield, Zap, PieChart, Users, ChevronRight, DollarSign } from 'lucide-react';
 import Navbar from '../components/Navbar/Navbar';
 import dashboardImage from './../images/dashboard.PNG';
+import {  useNavigate } from "react-router-dom";
+
 const BankingLandingPage = () => {
+  const navigate = useNavigate();
+  
+
+  const isLoggedin = () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        navigate('/dashboard', { replace: true });
+    }
+    else {
+      navigate('/login', { replace: true });
+    }
+  }
+
+
   return (
     <div>
     <Navbar />
@@ -21,7 +38,8 @@ const BankingLandingPage = () => {
                 Solutions comptables avancées conçues spécifiquement pour le secteur bancaire, vous permettant de gérer les opérations financières avec une haute efficacité, avec des rapports détaillés et des tableaux de bord intégrés sur une plateforme sécurisée et facile à utiliser.
               </p>
               <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-               <a href="/login" > <button className="px-8 py-4 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center">
+                
+               <a onClick={isLoggedin} > <button className="px-8 py-4 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center">
                   Commencer maintenant
                   <ChevronRight className="ml-2" size={20} />
                 </button></a> 
@@ -162,7 +180,7 @@ const BankingLandingPage = () => {
             Rejoignez plus de 500 institutions financières qui utilisent avec succès notre système comptable pour gérer leurs opérations financières quotidiennes
           </p>
           <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-            <a href="/login" > <button className="px-8 py-4 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+            <a onClick={isLoggedin} > <button className="px-8 py-4 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">
               Commencer votre essai gratuit
             </button></a>
             <button className="px-8 py-4 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-white transition-colors">

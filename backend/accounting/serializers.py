@@ -35,8 +35,6 @@ class DepositSerializer(serializers.ModelSerializer):
             'maturity_date': {'required': False}
         }
 
-
-
 class JournalEntrySerializer(serializers.ModelSerializer):
     debit_account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())  # Use PK for saving
     credit_account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())  # Use PK for saving
@@ -55,19 +53,3 @@ class JournalEntrySerializer(serializers.ModelSerializer):
         return representation
 
 
-class CSVJournalEntrySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = JournalEntry
-        fields = ['date', 'description', 'debit_account', 'credit_account', 'debit_amount', 'credit_amount']
-    
-    def validate(self, data):
-        """
-        التحقق من صحة البيانات قبل الحفظ
-        """
-        if data['debit_amount'] != data['credit_amount']:
-            raise serializers.ValidationError("Debit and Credit amounts must be equal.")
-        
-        if data['debit_account'].balance < data['debit_amount']:
-            raise serializers.ValidationError(f"Insufficient balance in debit account {data['debit_account']}.")
-
-        return data

@@ -23,6 +23,7 @@ urlpatterns = [
     path('journal-entries/', JournalEntryListCreate.as_view(), name='journal-entry-list-create'),
     path('journal-entries/<int:pk>/', JournalEntryDetail.as_view(), name='journal-entry-detail'),
 
-    path('import-csv/', import_csv, name='import-csv'),
+
+    path('import-csv/', import_csv, name='import_csv'),
     
 ]
